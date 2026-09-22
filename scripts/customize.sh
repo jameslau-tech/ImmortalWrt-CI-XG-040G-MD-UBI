@@ -84,3 +84,33 @@ import_footstrap
 rm -rf ./tmp
 
 echo "Third-party package import completed."
+
+# ---------------------------------------------------------
+# Remove legacy iptables dependencies from Docker (dockerd)
+# ---------------------------------------------------------
+DOCKER_MAKEFILE="feeds/packages/utils/dockerd/Makefile"
+
+if [ -f "$DOCKER_MAKEFILE" ]; then
+    echo "Patching Docker Makefile to remove legacy iptables dependencies..."
+    # Remove iptables modules from the DEPENDS line
+    sed -i 's/+iptables-mod-extra//g' "$DOCKER_MAKEFILE"
+    sed -i 's/+iptables//g' "$DOCKER_MAKEFILE"
+    sed -i 's/+ip6tables//g' "$DOCKER_MAKEFILE"
+    sed -i 's/+kmod-ipt-nat6//g' "$DOCKER_MAKEFILE"
+    sed -i 's/+kmod-ipt-nat//g' "$DOCKER_MAKEFILE"
+    sed -i 's/+kmod-ipt-physdev//g' "$DOCKER_MAKEFILE"
+    # Clean up any trailing double plusses or spaces left over from deletions
+    sed -i 's/++/\+/g' "$DOCKER_MAKEFILE"
+    sed -i 's/ \+/ /g' "$DOCKER_MAKEFILE"
+else
+    echo "Warning: Docker Makefile not found at $DOCKER_MAKEFILE"
+fi
+
+# Force Docker daemon to use nftables natively
+mkdir -p files/etc/docker
+cat <<EOF > files/etc/docker/daemon.json
+{
+  "iptables": false,
+  "nftables": "enabled"
+}
+EOF
